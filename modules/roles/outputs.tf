@@ -1,6 +1,11 @@
-output "deploy_role_ids" {
-  description = "Map of environment to deploy role id."
-  value       = { for env, role in nexus_security_role.deploy : env => role.roleid }
+output "publish_role_ids" {
+  description = "Map of environment to publish role id."
+  value       = { for env, role in nexus_security_role.publish : env => role.roleid }
+}
+
+output "releaser_role_ids" {
+  description = "Map of environment to releaser role id (only environments with a releases_repository)."
+  value       = { for env, role in nexus_security_role.releaser : env => role.roleid }
 }
 
 output "read_role_ids" {

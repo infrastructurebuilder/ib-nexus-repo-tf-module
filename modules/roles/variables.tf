@@ -9,9 +9,10 @@ variable "privilege_format" {
 }
 
 variable "environments" {
-  description = "Per-environment repository names to grant access to. Keyed by environment (dev, test, prod)."
+  description = "Per-environment repository names to grant access to. Keyed by environment (dev, test, prod). When releases_repository is set, an additional releaser role is created with write access to it."
   type = map(object({
-    hosted_repository = string
-    group_repository  = string
+    hosted_repository   = string
+    group_repository    = string
+    releases_repository = optional(string)
   }))
 }

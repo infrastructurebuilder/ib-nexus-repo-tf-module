@@ -4,18 +4,33 @@
 # exist before the roles are created (guaranteed here because the repository
 # names are passed in from resource attributes).
 
-resource "nexus_security_role" "deploy" {
+resource "nexus_security_role" "publish" {
   for_each = var.environments
 
-  roleid      = "${var.role_prefix}-${each.key}-deploy"
-  name        = "${var.role_prefix}-${each.key}-deploy"
-  description = "Deploy (publish) access to the ${each.value.hosted_repository} repository"
+  roleid      = "${var.role_prefix}-${each.key}-publish"
+  name        = "${var.role_prefix}-${each.key}-publish"
+  description = "Publish (write) access to the ${each.value.hosted_repository} repository"
 
   privileges = [
     "nx-repository-view-${var.privilege_format}-${each.value.hosted_repository}-browse",
     "nx-repository-view-${var.privilege_format}-${each.value.hosted_repository}-read",
     "nx-repository-view-${var.privilege_format}-${each.value.hosted_repository}-add",
     "nx-repository-view-${var.privilege_format}-${each.value.hosted_repository}-edit",
+  ]
+}
+
+resource "nexus_security_role" "releaser" {
+  for_each = { for env, cfg in var.environments : env => cfg if cfg.releases_repository != null }
+
+  roleid      = "${var.role_prefix}-${each.key}-releaser"
+  name        = "${var.role_prefix}-${each.key}-releaser"
+  description = "Release (publish) access to the ${each.value.releases_repository} repository"
+
+  privileges = [
+    "nx-repository-view-${var.privilege_format}-${each.value.releases_repository}-browse",
+    "nx-repository-view-${var.privilege_format}-${each.value.releases_repository}-read",
+    "nx-repository-view-${var.privilege_format}-${each.value.releases_repository}-add",
+    "nx-repository-view-${var.privilege_format}-${each.value.releases_repository}-edit",
   ]
 }
 

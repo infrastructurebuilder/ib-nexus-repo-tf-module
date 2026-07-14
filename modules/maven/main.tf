@@ -7,18 +7,34 @@ locals {
     test = nexus_repository_maven_group.test.name
     prod = nexus_repository_maven_group.prod.name
   }
+
+  url_base = var.nexus_url == null ? "" : trimsuffix(var.nexus_url, "/")
+
+  snapshots_urls = {
+    for env, repo in nexus_repository_maven_hosted.snapshots :
+    env => "${local.url_base}/repository/${repo.name}"
+  }
+
+  releases_urls = {
+    for env, repo in nexus_repository_maven_hosted.releases :
+    env => "${local.url_base}/repository/${repo.name}"
+  }
 }
 
-# ── Hosted repositories: one per environment ─────────────────────────────────
+# ── Hosted repositories: snapshots + releases per environment ────────────────
+# Maven splits each environment into two hosted repos because a repository's
+# version policy is exclusive: SNAPSHOT repos reject release artifacts and
+# vice versa. Write access is also split: everyone with the environment role
+# deploys snapshots; only the releaser role writes releases.
 
-resource "nexus_repository_maven_hosted" "env" {
+resource "nexus_repository_maven_hosted" "snapshots" {
   for_each = local.environments
 
-  name   = "${local.name}-${each.key}"
+  name   = "${local.name}-${each.key}-snapshots"
   online = var.online
 
   maven {
-    version_policy      = var.maven_version_policy
+    version_policy      = "SNAPSHOT"
     layout_policy       = var.maven_layout_policy
     content_disposition = var.maven_content_disposition
   }
@@ -27,6 +43,32 @@ resource "nexus_repository_maven_hosted" "env" {
     blob_store_name                = var.blobstore_name
     strict_content_type_validation = var.strict_content_type_validation
     write_policy                   = lookup(var.write_policy, each.key, "ALLOW")
+  }
+
+  dynamic "cleanup" {
+    for_each = length(var.cleanup_policies) > 0 ? [1] : []
+    content {
+      policy_names = var.cleanup_policies
+    }
+  }
+}
+
+resource "nexus_repository_maven_hosted" "releases" {
+  for_each = local.environments
+
+  name   = "${local.name}-${each.key}-releases"
+  online = var.online
+
+  maven {
+    version_policy      = "RELEASE"
+    layout_policy       = var.maven_layout_policy
+    content_disposition = var.maven_content_disposition
+  }
+
+  storage {
+    blob_store_name                = var.blobstore_name
+    strict_content_type_validation = var.strict_content_type_validation
+    write_policy                   = lookup(var.releases_write_policy, each.key, "ALLOW_ONCE")
   }
 
   dynamic "cleanup" {
@@ -80,10 +122,12 @@ resource "nexus_repository_maven_proxy" "this" {
 
 # ── Group repositories ────────────────────────────────────────────────────────
 # Member order matters: Nexus resolves members in order, first match wins.
-# prod-group = [prod, proxy]; test-group = [test, prod-group];
-# dev-group = [dev, test-group]. The proxy is therefore always reachable, and
-# an artifact in a lower environment never overrides the same artifact in a
-# higher-priority (closer) repository.
+# Releases sit ahead of snapshots in every group;
+# prod-group = [releases, snapshots, proxy];
+# test-group = [releases, snapshots, prod-group];
+# dev-group  = [releases, snapshots, test-group]. The proxy is therefore
+# always reachable, and an artifact in a lower environment never overrides
+# the same artifact in a higher-priority (closer) repository.
 
 resource "nexus_repository_maven_group" "prod" {
   name   = "${local.name}-prod-group"
@@ -96,7 +140,8 @@ resource "nexus_repository_maven_group" "prod" {
 
   group {
     member_names = [
-      nexus_repository_maven_hosted.env["prod"].name,
+      nexus_repository_maven_hosted.releases["prod"].name,
+      nexus_repository_maven_hosted.snapshots["prod"].name,
       nexus_repository_maven_proxy.this.name,
     ]
   }
@@ -113,7 +158,8 @@ resource "nexus_repository_maven_group" "test" {
 
   group {
     member_names = [
-      nexus_repository_maven_hosted.env["test"].name,
+      nexus_repository_maven_hosted.releases["test"].name,
+      nexus_repository_maven_hosted.snapshots["test"].name,
       nexus_repository_maven_group.prod.name,
     ]
   }
@@ -130,7 +176,8 @@ resource "nexus_repository_maven_group" "dev" {
 
   group {
     member_names = [
-      nexus_repository_maven_hosted.env["dev"].name,
+      nexus_repository_maven_hosted.releases["dev"].name,
+      nexus_repository_maven_hosted.snapshots["dev"].name,
       nexus_repository_maven_group.test.name,
     ]
   }
@@ -147,8 +194,9 @@ module "roles" {
 
   environments = {
     for env in local.environments : env => {
-      hosted_repository = nexus_repository_maven_hosted.env[env].name
-      group_repository  = local.group_names[env]
+      hosted_repository   = nexus_repository_maven_hosted.snapshots[env].name
+      group_repository    = local.group_names[env]
+      releases_repository = nexus_repository_maven_hosted.releases[env].name
     }
   }
 }

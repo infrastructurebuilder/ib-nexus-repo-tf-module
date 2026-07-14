@@ -23,7 +23,7 @@ variable "strict_content_type_validation" {
 }
 
 variable "write_policy" {
-  description = "Write policy per environment for the hosted repositories. Keys: dev, test, prod. Values: ALLOW, ALLOW_ONCE, DENY."
+  description = "Write policy per environment for the snapshots hosted repositories. Keys: dev, test, prod. Values: ALLOW, ALLOW_ONCE, DENY."
   type        = map(string)
   default = {
     dev  = "ALLOW"
@@ -88,13 +88,13 @@ variable "http_client_auto_block" {
 }
 
 variable "create_roles" {
-  description = "Whether to create per-environment deploy and read roles."
+  description = "Whether to create per-environment publish and read roles."
   type        = bool
   default     = true
 }
 
 variable "maven_version_policy" {
-  description = "What type of artifacts does this repository store: RELEASE, SNAPSHOT, or MIXED."
+  description = "Version policy for the proxy repository: RELEASE, SNAPSHOT, or MIXED. Hosted repositories are fixed (snapshots = SNAPSHOT, releases = RELEASE)."
   type        = string
   default     = "RELEASE"
 
@@ -113,6 +113,30 @@ variable "maven_layout_policy" {
     condition     = contains(["STRICT", "PERMISSIVE"], var.maven_layout_policy)
     error_message = "maven_layout_policy must be one of STRICT, PERMISSIVE."
   }
+}
+
+variable "releases_write_policy" {
+  description = "Write policy per environment for the releases hosted repositories. Defaults to ALLOW_ONCE so released artifacts are immutable. Keys: dev, test, prod. Values: ALLOW, ALLOW_ONCE, DENY."
+  type        = map(string)
+  default = {
+    dev  = "ALLOW_ONCE"
+    test = "ALLOW_ONCE"
+    prod = "ALLOW_ONCE"
+  }
+
+  validation {
+    condition = alltrue([
+      for k, v in var.releases_write_policy :
+      contains(["dev", "test", "prod"], k) && contains(["ALLOW", "ALLOW_ONCE", "DENY"], v)
+    ])
+    error_message = "releases_write_policy keys must be dev/test/prod and values one of ALLOW, ALLOW_ONCE, DENY."
+  }
+}
+
+variable "nexus_url" {
+  description = "Base URL of the Nexus instance (e.g. https://nexus.example.com), used only to build repository URL outputs. When null, URL outputs are server-relative paths."
+  type        = string
+  default     = null
 }
 
 variable "maven_content_disposition" {

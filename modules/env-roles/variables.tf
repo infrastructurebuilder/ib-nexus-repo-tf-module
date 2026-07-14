@@ -1,9 +1,10 @@
 variable "formats" {
   description = "Map of format key to repository info, as produced by each format module's repository_info output."
   type = map(object({
-    privilege_format    = string
-    hosted_repositories = map(string)
-    group_repositories  = map(string)
+    privilege_format      = string
+    hosted_repositories   = map(string)
+    group_repositories    = map(string)
+    releases_repositories = optional(map(string), {})
   }))
 }
 

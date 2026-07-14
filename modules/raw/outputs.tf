@@ -8,9 +8,9 @@ output "group_repositories" {
   value       = local.group_names
 }
 
-output "deploy_roles" {
-  description = "Map of environment to deploy role id (empty if create_roles = false)."
-  value       = try(module.roles[0].deploy_role_ids, {})
+output "publish_roles" {
+  description = "Map of environment to publish role id (empty if create_roles = false)."
+  value       = try(module.roles[0].publish_role_ids, {})
 }
 
 output "read_roles" {

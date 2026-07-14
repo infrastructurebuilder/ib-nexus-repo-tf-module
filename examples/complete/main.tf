@@ -19,6 +19,7 @@ module "maven" {
   source = "../../modules/maven"
 
   proxy_remote_url = "https://repo1.maven.org/maven2/"
+  nexus_url        = var.nexus_url
 }
 
 module "pypi" {
@@ -101,6 +102,19 @@ resource "nexus_security_user" "test_user" {
   roles = [module.env_roles.role_ids["test"]]
 }
 
+# The releaser role is a superset of the base environment role (it nests it),
+# so a single assignment grants snapshot write, group read, and releases write.
+resource "nexus_security_user" "releaser_user" {
+  userid    = "riley.releaser"
+  firstname = "Riley"
+  lastname  = "Releaser"
+  email     = "riley.releaser@example.com"
+  password  = var.example_users_password
+  status    = "active"
+
+  roles = [module.env_roles.releaser_role_ids["dev"]]
+}
+
 resource "nexus_security_user" "prod_user" {
   userid    = "parker.prod"
   firstname = "Parker"
@@ -114,10 +128,14 @@ resource "nexus_security_user" "prod_user" {
 
 output "maven" {
   value = {
-    hosted = module.maven.hosted_repositories
-    groups = module.maven.group_repositories
-    proxy  = module.maven.proxy_repository
-    deploy = module.maven.deploy_roles
-    read   = module.maven.read_roles
+    snapshots     = module.maven.snapshots_repositories
+    releases      = module.maven.releases_repositories
+    snapshot_urls = module.maven.snapshots_repository_urls
+    release_urls  = module.maven.releases_repository_urls
+    groups        = module.maven.group_repositories
+    proxy         = module.maven.proxy_repository
+    publish       = module.maven.publish_roles
+    releaser      = module.maven.releaser_roles
+    read          = module.maven.read_roles
   }
 }

@@ -47,7 +47,7 @@ variable "cleanup_policies" {
 }
 
 variable "create_roles" {
-  description = "Whether to create per-environment deploy and read roles."
+  description = "Whether to create per-environment publish and read roles."
   type        = bool
   default     = true
 }

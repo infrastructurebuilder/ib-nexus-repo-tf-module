@@ -88,7 +88,7 @@ variable "http_client_auto_block" {
 }
 
 variable "create_roles" {
-  description = "Whether to create per-environment deploy and read roles."
+  description = "Whether to create per-environment publish and read roles."
   type        = bool
   default     = true
 }

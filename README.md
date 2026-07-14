@@ -28,12 +28,23 @@ For a base name `<name>` (defaults to the format, e.g. `maven`):
   which has no upstream to proxy)
 - `<name>-dev-group`, `<name>-test-group`, `<name>-prod-group` — group repositories
 
+Maven is special: because a Maven repository's version policy is exclusive,
+each environment gets **two** hosted repositories instead of one —
+`<name>-<env>-snapshots` (SNAPSHOT) and `<name>-<env>-releases` (RELEASE,
+`ALLOW_ONCE` write policy by default so releases are immutable). Groups list
+releases ahead of snapshots. The module outputs both repository names and
+URLs (`snapshots_repository_urls` / `releases_repository_urls`; set
+`nexus_url` to get absolute URLs).
+
 ### Group membership (order matters — first member wins on conflicts)
 
 ```text
 prod-group = [ prod,  proxy      ]   # raw: [ prod ]
 test-group = [ test,  prod-group ]
 dev-group  = [ dev,   test-group ]
+
+# maven: each env's hosted slot expands to [ releases, snapshots ]
+dev-group  = [ dev-releases, dev-snapshots, test-group ]
 ```
 
 Because groups are nested, the proxy (attached to the prod group) is always
@@ -46,7 +57,10 @@ effectively `dev → test → prod → proxy`.
 
 Created via `modules/roles`; disable with `create_roles = false`.
 
-- `<name>-<env>-deploy` — browse/read/add/edit on the `<name>-<env>` hosted repo
+- `<name>-<env>-publish` — browse/read/add/edit on the `<name>-<env>` hosted repo
+  (for maven: the `<name>-<env>-snapshots` repo)
+- `<name>-<env>-releaser` — maven only: browse/read/add/edit on the
+  `<name>-<env>-releases` repo
 - `<name>-<env>-read` — browse/read on the `<name>-<env>` hosted repo and the
   `<name>-<env>-group` group repo
 
@@ -62,6 +76,13 @@ single role per environment spanning every format you feed it:
   read (browse/read) on every format's `dev-group`
 - `test` — write on every `test` hosted repo, read on every `test-group`
 - `prod` — write on every `prod` hosted repo, read on every `prod-group`
+- `dev-releaser` / `test-releaser` / `prod-releaser` — a superset of the base
+  environment role: it nests it (inheriting hosted/snapshot write and group
+  read) and adds write on every format's releases repo for that environment
+  (currently maven only). A releaser needs only this one role.
+- `dev-deploy` / `test-deploy` / `prod-deploy` — read-only: browse/read on
+  every format's group repo for that environment, no write anywhere. Intended
+  for users and CI tooling that deploy applications and only pull artifacts.
 
 Each role sees only its own environment's repositories. Artifacts from higher
 environments and the proxy are still available as pass-through via the group
@@ -143,22 +164,25 @@ See [examples/complete](examples/complete/) for all five formats together.
 | `proxy_metadata_max_age`                         | Proxy metadata cache TTL (minutes)              | `1440`                                              |
 | `negative_cache_enabled` / `negative_cache_ttl`  | Proxy not-found cache                           | `true` / `1440`                                     |
 | `http_client_blocked` / `http_client_auto_block` | Proxy outbound connection controls              | `false` / `false`                                   |
-| `create_roles`                                   | Create per-environment deploy/read roles        | `true`                                              |
+| `create_roles`                                   | Create per-environment publish/read roles       | `true`                                              |
 
-Format-specific inputs: `maven_version_policy`, `maven_layout_policy`,
-`maven_content_disposition` (maven); `docker_v1_enabled`,
-`docker_force_basic_auth`, `docker_http_ports`, `docker_proxy_index_type`,
-`docker_proxy_index_url` (docker).
+Format-specific inputs: `maven_version_policy` (proxy only),
+`maven_layout_policy`, `maven_content_disposition`, `releases_write_policy`,
+`nexus_url` (maven); `docker_v1_enabled`, `docker_force_basic_auth`,
+`docker_http_ports`, `docker_proxy_index_type`, `docker_proxy_index_url`
+(docker).
 
 ## Outputs (all format modules)
 
-| Name                  | Description                                 |
-| --------------------- | ------------------------------------------- |
-| `hosted_repositories` | Map of environment → hosted repository name |
-| `group_repositories`  | Map of environment → group repository name  |
-| `proxy_repository`    | Proxy repository name (absent on raw)       |
-| `deploy_roles`        | Map of environment → deploy role id         |
-| `read_roles`          | Map of environment → read role id           |
+| Name                  | Description                                                                                                                                         |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `hosted_repositories` | Map of environment → hosted repository name (maven instead has `snapshots_repositories`, `releases_repositories`, and matching `*_repository_urls`) |
+| `group_repositories`  | Map of environment → group repository name                                                                                                          |
+| `proxy_repository`    | Proxy repository name (absent on raw)                                                                                                               |
+| `publish_roles`       | Map of environment → publish (write) role id                                                                                                        |
+| `releaser_roles`      | Maven only: map of environment → releaser role id                                                                                                   |
+| `read_roles`          | Map of environment → read role id                                                                                                                   |
+| `repository_info`     | Consolidated object for `modules/env-roles`                                                                                                         |
 
 ## Notes
 
