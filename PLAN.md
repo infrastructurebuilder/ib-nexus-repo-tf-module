@@ -6,7 +6,7 @@ a status line and a link to its plan in `specs/<NNN-name>/plan.md`. The rule is 
 
 ## 2026-11-20 — Adopt Spec Kit
 
-*Status: in progress. Committed on `feature/specs-init`; not yet merged into `develop`.*
+*Status: done. Squash-merged into `develop` on 2026-11-20; `feature/specs-init` is kept.*
 
 This phase has no spec directory, because it sets up the workflow that later features use.
 
@@ -16,7 +16,7 @@ This phase has no spec directory, because it sets up the workflow that later fea
 - [x] Create this index
 - [x] Decide the release branch: git-flow release branches finished into `main`; `master` is retired
 - [x] Remove the Sync Impact Report comment from the constitution and commit
-- [ ] Finish the branch with a squash-merge into `develop`
+- [x] Finish the branch with a squash-merge into `develop`
 
 Follow-up outside this phase: replace `master` with `main` on the remote, and move consumers
 that pin `?ref=master` to a tag.
