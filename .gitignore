@@ -8,3 +8,8 @@ crash.*.log
 .terraformrc
 terraform.rc
 .DS_Store
+
+# Agent folder: share only the Spec Kit skills. Anything else an agent
+# writes there (settings, credentials) stays local.
+/.claude/*
+!/.claude/skills
